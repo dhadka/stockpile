@@ -1,28 +1,39 @@
 {
   "name": "stockpile",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "files": ["lib/**/*"],
+  "description": "Easy storage and caching for GitHub Actions",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib/**/*"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --config jestconfig.json",
     "build": "tsc",
     "format": "prettier --write \"src/**/*.ts\"",
-    "lint": "tslint -p tsconfig.json"
+    "lint": "tslint -p tsconfig.json",
+    "prepare" : "npm run build",
+    "prepublishOnly" : "npm test && npm run lint",
+    "preversion" : "npm run lint",
+    "version" : "npm run format && git add -A src",
+    "postversion" : "git push && git push --tags"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dhadka/stockpile.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["cache", "GitHub", "Actions"],
+  "author": "dhadka",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/dhadka/stockpile/issues"
   },
   "homepage": "https://github.com/dhadka/stockpile#readme",
   "devDependencies": {
+    "@types/jest": "^26.0.10",
+    "jest": "^26.4.2",
     "prettier": "^2.1.1",
+    "ts-jest": "^26.3.0",
     "tslint": "^6.1.3",
     "tslint-config-prettier": "^1.18.0",
     "typescript": "^4.0.2"
