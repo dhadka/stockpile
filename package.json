@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc"
   },
   "repository": {
     "type": "git",
@@ -16,5 +17,8 @@
   "bugs": {
     "url": "https://github.com/dhadka/stockpile/issues"
   },
-  "homepage": "https://github.com/dhadka/stockpile#readme"
+  "homepage": "https://github.com/dhadka/stockpile#readme",
+  "devDependencies": {
+    "typescript": "^4.0.2"
+  }
 }
