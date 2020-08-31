@@ -1,0 +1,1 @@
+# Stockpile - Easy Storage for GitHub Actions
