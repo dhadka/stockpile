@@ -1,190 +1,70 @@
-import { BlobServiceClient, ContainerClient, BlobClient, BlockBlobClient, RestError } from '@azure/storage-blob'
-import { TimeSpan } from './dateUtils'
+import * as url from 'url'
+import { Client } from './base'
+import { TimeSpan } from './timespan'
+import { AzureStorageConfiguration, AzureStorageClient, SASToken, ConnectionString } from './azure'
 
-export interface CleanupOptions {
-    verbose?: boolean
-}
+export { Client, TimeSpan }
 
-export abstract class Configuration {
+export class Stockpile {
+    private constructor() {
 
-}
-
-export class AzureStorageConfiguration extends Configuration {
-    account: string
-    container: string
-    sasToken: string
-
-    constructor(account: string, container: string, sasToken: string) {
-        super()
-        this.account = account
-        this.container = container
-        this.sasToken = sasToken
-    }
-}
-
-export abstract class Client {
-    abstract async createContainerIfNotExists(): Promise<void>
-    abstract async uploadFile(filePath: string, blobName: string): Promise<void>
-    abstract async downloadFile(blobName: string, filePath: string): Promise<void>
-    abstract async updateLastAccessedTime(blobName: string): Promise<void>
-    abstract async cleanup(options?: CleanupOptions): Promise<void>
-}
-
-export class AzureStorageClient extends Client {
-    configuration: AzureStorageConfiguration
-    client: any
-
-    constructor(configuration: AzureStorageConfiguration) {
-        super()
-        this.configuration = configuration
-        
-        this.client = new BlobServiceClient(
-            `https://${configuration.account}.blob.core.windows.net${configuration.sasToken}`)
     }
 
-    private getContainerClient(): ContainerClient {
-        return this.client.getContainerClient(this.configuration.container)
-    }
+    static getBlobName(path: string): string {
+        if (path.startsWith("http://") || path.startsWith("https://")) {
+            const pathUrl = url.parse(path)
 
-    private getBlobClient(name: string): BlockBlobClient {
-        return this.getContainerClient().getBlobClient(name).getBlockBlobClient()
-    }
-
-    async createContainerIfNotExists(): Promise<void> {
-        const containerClient = this.getContainerClient();
-
-        if (!await containerClient.exists()) {
-            await containerClient.create()
-        }
-    }
-
-    async uploadFile(filePath: string, blobName: string): Promise<void> {
-        const blobClient = this.getBlobClient(blobName)
-
-        // TODO: Instead of timing out, get this to work with leasing.  The lease should keep renewing until the
-        // upload finishes, and we can check if there is an active lease to determine if another process is uploading.
-
-        // Check if the file already exists. If a 0-byte file exists, another process is uploading the file.
-        if (await blobClient.exists()) {
-            const blobProperties = await blobClient.getProperties()
-            const timeout = new TimeSpan(5 * 60 * 1000)
-
-            if (blobProperties.contentLength == 0) {
-                if (blobProperties.lastModified && TimeSpan.fromDates(new Date(), blobProperties.lastModified).isGreaterThan(timeout)) {
-                    console.log(`${blobName} was being upload by another prcess but it timed out, trying again`)
-                } else {
-                    console.log(`${blobName} is being upload by another process, skipping upload`)
-                    return
-                }
-            } else {
-                console.log(`${blobName} already exists`)
-                return
-            }
-        }
-
-        // First create an empty file so we can acquire a lease.
-        await blobClient.upload("", 0)
-
-        // Acquire the lease.
-        const blobLeaseClient = blobClient.getBlobLeaseClient()
-
-        try {
-            let downloadFinished = false
-            let lease = await blobLeaseClient.acquireLease(60)
-
-            let renewLeaseCallback = () => {
-                if (!downloadFinished) {
-                    blobLeaseClient.renewLease().then((l) => {
-                        console.log("Renewed lease for another 60 seconds")
-                    })
-
-                    setTimeout(renewLeaseCallback, 15000)
-                }
-            }
-
-            setTimeout(renewLeaseCallback, 30000)
-
-            // Upload the file.
-            try {
-                await blobClient.uploadFile(filePath, {
-                    metadata: {
-                        "ttl": "7d",
-                        "last_accessed": new Date().toUTCString()
-                    },
-                    conditions: {
-                        leaseId: lease.leaseId
-                    }
-                })
-
-                downloadFinished = true
-            } finally {
-                await blobLeaseClient.releaseLease()
-            }
-        } catch (error) {
-            if (error instanceof RestError) {
-                if (error.statusCode == 409) {
-                    console.log(`${blobName} - Another process has the lease`)
-                    return
-                }
-            }
-
-            throw error
-        }
-
-        console.log(`${blobName} finished uploading`)
-    }
-
-    async downloadFile(blobName: string, filePath: string): Promise<void> {
-        const blobClient = this.getBlobClient(blobName)
-        await blobClient.downloadToFile(filePath);
-    }
-
-    async updateLastAccessedTime(blobName: string): Promise<void> {
-        const blobClient = this.getBlobClient(blobName)
-        const properties = await blobClient.getProperties()
-        const metadata = properties.metadata ?? {}
-        metadata["last_accessed"] = new Date().toUTCString()
-        blobClient.setMetadata(metadata)
-    }
-
-    async cleanup(options?: CleanupOptions) {
-        const containerClient = this.getContainerClient()
-
-        for await (const blob of containerClient.listBlobsFlat({ includeMetadata: true })) {
-            if (options?.verbose) {
-                console.log(`${blob.name}`)
-            }
-
-            if (blob.metadata) {
-                const ttl = blob.metadata["ttl"]
-                const lastAccessed = blob.metadata["last_accessed"]
-
-                if (ttl && lastAccessed) {
-                    const age = new TimeSpan(Date.now() - Date.parse(lastAccessed))
-                    const maxAge = TimeSpan.fromString(ttl)
-
-                    if (options?.verbose) {
-                        console.log(`  * Age: ${age}`)
-                        console.log(`  * TTL: ${maxAge}`)
-                    }
-
-                    if (age.isGreaterThan(maxAge)) {
-                        if (options?.verbose) {
-                            console.log(`  * Action: Deleting blob, exceeds TTL`)
-                        }
-
-                       await this.getBlobClient(blob.name).delete()
-                    } else {
-                        if (options?.verbose) {
-                            console.log(`  * Action: None, still alive`)
-                        }
-                    }
-                }
-            } else {
-                if (options?.verbose) {
-                    console.log(`  * Action: None, missing metadata`)
+            if (pathUrl.host?.indexOf(".blob.core.windows.net")) {
+                const containerName = pathUrl.path?.substring(1, pathUrl.path.indexOf('/', 1))
+                const blobName = pathUrl.path?.substring(2 + (containerName?.length ?? 0))
+                
+                if (blobName) {
+                    return blobName
                 }
             }
         }
+
+        throw Error(`Unable to find blob name in '${path}`)
+    }
+
+    static createClient(path: string): Client {
+        if (path.startsWith("http://") || path.startsWith("https://")) {
+            const pathUrl = url.parse(path)
+
+            if (pathUrl.host?.indexOf(".blob.core.windows.net")) {
+                const accountName = pathUrl.host?.substring(0, pathUrl.host.indexOf('.'))
+                const containerName = pathUrl.path?.substring(1, pathUrl.path.indexOf('/', 1))
+                let credential: SASToken | ConnectionString | undefined = undefined
+
+                if (process.env["SAS_TOKEN"]) {
+                    credential = new SASToken(process.env["SAS_TOKEN"])
+                }
+
+                if (process.env["CONNECTION_STRING"]) {
+                    credential = new ConnectionString(process.env["CONNECTION_STRING"])
+                }
+
+                if (!accountName) {
+                    throw Error(`Unable to parse account name from '${path}'`)
+                }
+
+                if (!containerName) {
+                    throw Error(`Unable to parse container name from '${path}'`)
+                }
+
+                if (!credential) {
+                    throw Error(`SAS_TOKEN environment variable not set`)
+                }
+
+                const configuration = new AzureStorageConfiguration(
+                    accountName,
+                    containerName,
+                    credential)
+
+                return new AzureStorageClient(configuration)
+            }
+        }
+
+        throw Error(`Unsupported path '${path}'`)
     }
 }
