@@ -42,6 +42,16 @@ must ensure the siganture grants read, write, list, and delete permission to con
 Also be mindful of the expiration date.  Save the SAS token or connection string as a secret and assign it to the
 `SAS_TOKEN` or `CONNECTION_STRING` environment variables.
 
+Urls to specific files are in the form `https://<account_name>.blob.core.windows.net/<container_name>/<file_name>`.
+
+#### AWS S3
+
+An AWS access key consists of two parts: the access key id and the secret access key.  Save both as secrets and assign
+them to the `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables, respectively.  Also set the 
+`AWS_REGION` environment variable or it will default to `us-east-1`.
+
+Urls to specific files are in the form `s3://<bucket_name>/<file_name>`.
+
 ### Stockpile-Copy
 
 [Stockpile-Copy](http://github.com/dhadka/stockpile-copy) transfers files between cloud storage and the local

@@ -2,6 +2,7 @@ import * as url from 'url'
 import { Client } from './base'
 import { TimeSpan } from './timespan'
 import { AzureStorageConfiguration, AzureStorageClient, SASToken, ConnectionString } from './azure'
+import { S3Configuration, S3Client } from './aws'
 
 export { Client, TimeSpan }
 
@@ -50,6 +51,19 @@ export class Stockpile {
 
                 return new AzureStorageClient(configuration)
             }
+        } else if (path.startsWith("s3://")) {
+            const pathUrl = url.parse(path)
+
+            if (!pathUrl.host || !pathUrl.path) {
+                throw Error(`Path is malformed: ${path}`)
+            }
+
+            const configuration = new S3Configuration(
+                pathUrl.host,
+                process.env["AWS_REGION"] ?? "us-east-1"
+            )
+
+            return new S3Client(configuration)
         }
 
         throw Error(`Unsupported path '${path}'`)
