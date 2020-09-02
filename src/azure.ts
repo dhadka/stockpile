@@ -1,4 +1,5 @@
 import { BlobServiceClient, ContainerClient, BlobClient, BlockBlobClient, RestError } from '@azure/storage-blob'
+import * as url from 'url'
 import { TimeSpan } from './timespan'
 import { Configuration, Client, CleanupOptions, UploadOptions } from './base'
 
@@ -53,6 +54,27 @@ export class AzureStorageClient extends Client {
 
     private getBlobClient(name: string): BlockBlobClient {
         return this.getContainerClient().getBlobClient(name).getBlockBlobClient()
+    }
+
+    getBlobName(path: string): string {
+        if (path.startsWith("http://") || path.startsWith("https://")) {
+            const pathUrl = url.parse(path)
+
+            if (!pathUrl.host || !pathUrl.path) {
+                throw Error(`Path is malformed: ${path}`)
+            }
+
+            if (pathUrl.host.indexOf(".blob.core.windows.net")) {
+                const containerName = pathUrl.path.substring(1, pathUrl.path.indexOf('/', 1))
+                const blobName = pathUrl.path.substring(2 + (containerName?.length ?? 0))
+                
+                if (blobName) {
+                    return blobName
+                }
+            }
+        }
+
+        throw Error(`Not a valid Azure storage path: ${path}`)
     }
 
     async createContainerIfNotExists(): Promise<void> {

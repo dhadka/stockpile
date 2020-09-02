@@ -16,4 +16,5 @@ export abstract class Client {
     abstract async downloadFile(blobName: string, filePath: string): Promise<void>
     abstract async updateLastAccessedTime(blobName: string): Promise<void>
     abstract async cleanup(options?: CleanupOptions): Promise<void>
+    abstract getBlobName(path: string): string
 }
