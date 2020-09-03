@@ -11,10 +11,10 @@ All of the corresponding GitHub Actions below are implemented using this NodeJS 
 
 ## Actions
 
-### Configuring
+### Configuring the Actions
 
 Stockpile is a "bring your own storage" solution.  Therefore, you are responsible for creating and maintaining the
-cloud storage account as well as all costs associated with operating the storage account.  To security configure
+cloud storage account as well as all costs associated with operating the storage account.  To securely configure
 Stockpile to use your storage account, first create secrets with the required connection information.  Then,
 pass the secret to Stockpile as an environment variable.  For example, we could set the `SAS_TOKEN` environment
 variable as follows:
@@ -29,7 +29,7 @@ jobs:
     - uses: dhadka/stockpile-copy@v1
       with:
         src: file.tgz
-        dest: https://account_name.blob.core.windows.net/container_name/blob.tgz
+        dest: https://account_name.blob.core.windows.net/container_name/file.tgz
 ```
 
 See the appropriate section below for details on which environment variables to configure for different cloud
@@ -38,7 +38,7 @@ storage providers.
 #### Azure Blob Storage
 
 Generate a Shared Access Signature (SAS) token or a connection string using the Azure Portal.  At a minimum, you
-must ensure the siganture grants read, write, list, and delete permission to containers and objects on blob storage.
+must ensure the signature grants read, write, list, and delete permissions to containers and objects on blob storage.
 Also be mindful of the expiration date.  Save the SAS token or connection string as a secret and assign it to the
 `SAS_TOKEN` or `CONNECTION_STRING` environment variables.
 
@@ -68,9 +68,9 @@ a cloud storage path.  An optional `ttl` field can be given to control the durat
 
 ### Stockpile-Cleanup
 
-When using the time-to-live (`ttl`) field, the cleanup job must be scheduled in order to actually move expired
-content.  [Stockpile-Cleanup](http://github.com/dhadka/stockpile-cleanup) is the Action that performs the actual
-cleanup.  The following is a complete workflow that runs cleanup once a day:
+When using the time-to-live (`ttl`) field, the [Stockpile-Cleanup](http://github.com/dhadka/stockpile-cleanup) action
+must be used within a scheduled job in order to actually remove expired content.  The following is a complete workflow
+that runs cleanup once a day:
 
 ```
 name: Cleanup
