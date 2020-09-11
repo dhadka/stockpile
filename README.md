@@ -26,7 +26,7 @@ jobs:
     env:
       SAS_TOKEN: ${{ secrets.SAS_TOKEN }}
     steps:
-    - uses: dhadka/stockpile-copy@v1
+    - uses: dhadka/stockpile-copy@master
       with:
         src: file.tgz
         dest: https://account_name.blob.core.windows.net/container_name/file.tgz
@@ -59,7 +59,7 @@ runner.  The `src` and `dest` paths are required.  One must point to a local fil
 a cloud storage path.  An optional `ttl` field can be given to control the duration a blob is retained.
 
 ```
-    - uses: dhadka/stockpile-copy@v1
+    - uses: dhadka/stockpile-copy@master
       with:
         src: file.tgz
         dest: https://<account_name>.blob.core.windows.net/<container_name>/file.tgz
